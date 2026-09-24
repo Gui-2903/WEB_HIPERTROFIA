@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Documentação de Arquitetura - Banco de Dados</title>
+  <style>
+    @page { size: A4; margin: 20mm; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #1a1a1a;
+      line-height: 1.5;
+      margin: 0;
+      padding: 0;
+    }
+    h1 { font-size: 22pt; color: #0f172a; margin-bottom: 4px; border-bottom: 2px solid #0f172a; padding-bottom: 8px; }
+    h2 { font-size: 15pt; color: #1e293b; margin-top: 24px; margin-bottom: 8px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; }
+    h3 { font-size: 12pt; color: #334155; margin-top: 16px; margin-bottom: 6px; }
+    p, li { font-size: 10pt; color: #334155; }
+    .badge { display: inline-block; padding: 2px 8px; font-size: 8pt; font-weight: bold; background: #e2e8f0; border-radius: 4px; color: #0f172a; }
+    .meta-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-size: 9pt; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; margin-bottom: 16px; font-size: 9pt; page-break-inside: avoid; }
+    th, td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left; }
+    th { background-color: #f1f5f9; color: #0f172a; font-weight: 600; }
+    tr:nth-child(even) { background-color: #f8fafc; }
+    .page-break { page-break-before: always; }
+    .highlight { font-weight: 600; color: #0284c7; }
+  </style>
+</head>
+<body>
+
+  <h1>Especificação de Engenharia: Banco de Dados</h1>
+  
+  <div class="meta-box">
+    <strong>Projeto:</strong> Ecossistema de Hipertrofia e Gestão de Atletas<br>
+    <strong>SGBD:</strong> PostgreSQL (Compatível com instâncias Docker e Nuvem)<br>
+    <strong>Padrão de Chaves:</strong> UUID v4 (Suporte a Arquitetura <em>Offline-First</em>)<br>
+    <strong>Status:</strong> Aprovado para Desenvolvimento
+  </div>
+
+  <h2>1. Visão Geral da Arquitetura</h2>
+  <p>
+    O banco de dados foi projetado para desacoplar rigorosamente o <strong>Planejamento</strong> (rotinas e fichas ideais) da <strong>Execução Real</strong> (histórico de cargas e repetições). 
+    A infraestrutura prevê alto volume de escrita na tabela de séries e suporte nativo a operações offline no aplicativo mobile.
+  </p>
+
+  <h2>2. Matriz de Relacionamentos (ERD)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Entidade Origem</th>
+        <th>Cardinalidade</th>
+        <th>Entidade Destino</th>
+        <th>Chave Estrangeira (FK)</th>
+        <th>Regra de Integridade</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>usuarios</code></td>
+        <td>1 : N</td>
+        <td><code>planos_treino</code></td>
+        <td><code>usuario_id</code></td>
+        <td>CASCADE ao deletar usuário</td>
+      </tr>
+      <tr>
+        <td><code>planos_treino</code></td>
+        <td>1 : N</td>
+        <td><code>dias_treino</code></td>
+        <td><code>plano_treino_id</code></td>
+        <td>CASCADE ao deletar plano</td>
+      </tr>
+      <tr>
+        <td><code>dias_treino</code></td>
+        <td>1 : N</td>
+        <td><code>dias_treino_exercicios</code></td>
+        <td><code>dia_treino_id</code></td>
+        <td>CASCADE ao deletar dia</td>
+      </tr>
+      <tr>
+        <td><code>exercicios_catalogo</code></td>
+        <td>1 : N</td>
+        <td><code>dias_treino_exercicios</code></td>
+        <td><code>exercicio_id</code></td>
+        <td>RESTRICT (impede remoção em uso)</td>
+      </tr>
+      <tr>
+        <td><code>usuarios</code></td>
+        <td>1 : N</td>
+        <td><code>sessoes_treino</code></td>
+        <td><code>usuario_id</code></td>
+        <td>CASCADE ao deletar usuário</td>
+      </tr>
+      <tr>
+        <td><code>sessoes_treino</code></td>
+        <td>1 : N</td>
+        <td><code>series_executadas</code></td>
+        <td><code>sessao_treino_id</code></td>
+        <td>CASCADE ao deletar sessão</td>
+      </tr>
+      <tr>
+        <td><code>exercicios_catalogo</code></td>
+        <td>1 : N</td>
+        <td><code>series_executadas</code></td>
+        <td><code>exercicio_id</code></td>
+        <td>RESTRICT</td>
+      </tr>
+      <tr>
+        <td><code>usuarios</code></td>
+        <td>1 : N</td>
+        <td><code>avaliacoes_corporais</code></td>
+        <td><code>usuario_id</code></td>
+        <td>CASCADE</td>
+      </tr>
+      <tr>
+        <td><code>usuarios</code></td>
+        <td>1 : N</td>
+        <td><code>exames_biomarcadores</code></td>
+        <td><code>usuario_id</code></td>
+        <td>CASCADE</td>
+      </tr>
+      <tr>
+        <td><code>usuarios</code></td>
+        <td>1 : 1 (por dia)</td>
+        <td><code>checkin_diario_lifestyle</code></td>
+        <td><code>usuario_id</code></td>
+        <td>CASCADE (Unique: user + data)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <h2>3. Dicionário de Tabelas e Atributos</h2>
+
+  <h3>Módulo 1: Motor de Treino</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Tabela</th>
+        <th>Campo</th>
+        <th>Tipo</th>
+        <th>Descrição</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td rowspan="3"><strong>exercicios_catalogo</strong></td>
+        <td><code>id</code></td>
+        <td>UUID (PK)</td>
+        <td>Identificador único do exercício.</td>
+      </tr>
+      <tr>
+        <td><code>nome</code></td>
+        <td>VARCHAR(150)</td>
+        <td>Nome oficial (Ex: Supino Reto com Barra).</td>
+      </tr>
+      <tr>
+        <td><code>grupo_muscular</code></td>
+        <td>VARCHAR(50)</td>
+        <td>Grupamento principal para contagem de volume semanal.</td>
+      </tr>
+      <tr>
+        <td rowspan="4"><strong>dias_treino_exercicios</strong></td>
+        <td><code>dia_treino_id</code></td>
+        <td>UUID (FK)</td>
+        <td>Vínculo com a ficha (Treino A, B, C).</td>
+      </tr>
+      <tr>
+        <td><code>exercicio_id</code></td>
+        <td>UUID (FK)</td>
+        <td>Vínculo com o catálogo de exercícios.</td>
+      </tr>
+      <tr>
+        <td><code>ordem</code></td>
+        <td>INT</td>
+        <td>Ordem de execução para a tela do app (1, 2, 3...).</td>
+      </tr>
+      <tr>
+        <td><code>series_alvo / reps_alvo</code></td>
+        <td>INT</td>
+        <td>Metas de séries e repetições planejadas.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Módulo 2: Execução e Métricas de Hipertrofia</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Tabela</th>
+        <th>Campo</th>
+        <th>Tipo</th>
+        <th>Descrição</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td rowspan="3"><strong>sessoes_treino</strong></td>
+        <td><code>id</code></td>
+        <td>UUID (PK)</td>
+        <td>Identificador da sessão iniciada.</td>
+      </tr>
+      <tr>
+        <td><code>data_inicio / data_fim</code></td>
+        <td>TIMESTAMPTZ</td>
+        <td>Cálculo automático de duração total de treino.</td>
+      </tr>
+      <tr>
+        <td><code>rpe_geral</code></td>
+        <td>INT (1-10)</td>
+        <td>Percepção subjetiva de esforço geral da sessão.</td>
+      </tr>
+      <tr>
+        <td rowspan="5"><strong>series_executadas</strong></td>
+        <td><code>tipo_serie</code></td>
+        <td>ENUM</td>
+        <td>AQUECIMENTO, TRABALHO, DROP_SET, FALHA.</td>
+      </tr>
+      <tr>
+        <td><code>peso</code></td>
+        <td>NUMERIC(6,2)</td>
+        <td>Carga utilizada em kg (permite decimais para anilhas fracionadas).</td>
+      </tr>
+      <tr>
+        <td><code>repeticoes</code></td>
+        <td>INT</td>
+        <td>Repetições válidas executadas.</td>
+      </tr>
+      <tr>
+        <td><code>rir</code></td>
+        <td>INT (0-10)</td>
+        <td>Repetições na reserva até a falha concêntrica.</td>
+      </tr>
+      <tr>
+        <td><code>tempo_descanso_segundos</code></td>
+        <td>INT</td>
+        <td>Tempo real de descanso cronometrado pelo app.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Módulo 3: Saúde, Biomarcadores e Lifestyle</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Tabela</th>
+        <th>Campo</th>
+        <th>Tipo</th>
+        <th>Descrição</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>avaliacoes_corporais</strong></td>
+        <td><code>peso_kg, percentual_gordura, medidas</code></td>
+        <td>NUMERIC</td>
+        <td>Evolução antropométrica e perimétrica.</td>
+      </tr>
+      <tr>
+        <td><strong>exames_biomarcadores</strong></td>
+        <td><code>resultados</code></td>
+        <td>JSONB</td>
+        <td>Estrutura flexível para múltiplos marcadores (Testosterona, Vitamina D, etc.).</td>
+      </tr>
+      <tr>
+        <td><strong>checkin_diario_lifestyle</strong></td>
+        <td><code>sono, estresse, doms, macros</code></td>
+        <td>INT / NUMERIC</td>
+        <td>Variáveis de prontidão biológica e recuperação do atleta.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>4. Decisões Críticas de Engenharia</h2>
+  <ul>
+    <li><strong>Chaves Primárias UUID v4:</strong> Permitem que o aplicativo gere registros localmente sem conexão com a internet, sincronizando com a API via fila sem gerar colisões de chave primária.</li>
+    <li><strong>Indexação Composta:</strong> O índice <code>idx_series_exercicio_sessao</code> garante busca em O(log n) para recuperar as cargas anteriores no início de cada exercício.</li>
+  </ul>
+
+</body>
+</html>

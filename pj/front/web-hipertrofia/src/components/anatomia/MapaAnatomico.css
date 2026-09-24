@@ -1,0 +1,91 @@
+/* Tematize sobrescrevendo as variáveis no modal (ex.: .meu-modal { --mapa-ativo: #ff2d55; }) */
+.mapa-anat {
+  --mapa-musculo: #64798f;        /* cinza-azulado da referência */
+  --mapa-musculo-hover: #8497ad;
+  --mapa-ativo: #e5383b;          /* vermelho do músculo selecionado */
+  --mapa-linha: #ffffff;          /* separação entre músculos (use a cor do fundo do modal) */
+  --mapa-contorno: #cfd7e2;       /* cabeça, mãos e pés */
+  --mapa-foco: #1d3557;
+  --mapa-texto: #3d4a5c;
+
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.mapa-anat__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  animation: mapa-anat-entrada 180ms ease-out;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* músculos */
+.mapa-anat__musculo path {
+  fill: var(--mapa-musculo);
+  stroke: var(--mapa-linha);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  transition: fill 140ms ease;
+}
+
+.mapa-anat__musculo .mapa-anat__fibra {
+  fill: none;
+  stroke-width: 0.8;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.mapa-anat__musculo--decorativo {
+  pointer-events: none;
+}
+
+.mapa-anat__musculo--interativo {
+  cursor: pointer;
+  outline: none;
+}
+
+.mapa-anat__musculo--interativo:hover path:not(.mapa-anat__fibra) {
+  fill: var(--mapa-musculo-hover);
+}
+
+.mapa-anat__musculo--ativo path:not(.mapa-anat__fibra),
+.mapa-anat__musculo--ativo:hover path:not(.mapa-anat__fibra) {
+  fill: var(--mapa-ativo);
+}
+
+.mapa-anat__musculo--interativo:focus-visible path:not(.mapa-anat__fibra) {
+  stroke: var(--mapa-foco);
+  stroke-width: 1.8;
+}
+
+/* cabeça, mãos e pés */
+.mapa-anat__extremidade path {
+  fill: var(--mapa-linha);
+  stroke: var(--mapa-contorno);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.mapa-anat__legenda {
+  min-height: 1.4em;            /* evita salto de layout ao trocar o texto */
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--mapa-texto);
+  text-align: center;
+}
+
+@keyframes mapa-anat-entrada {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mapa-anat__svg { animation: none; }
+  .mapa-anat__musculo path { transition: none; }
+}
