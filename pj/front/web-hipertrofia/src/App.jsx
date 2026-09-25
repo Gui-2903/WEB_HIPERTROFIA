@@ -5,6 +5,7 @@ import Combate from './pages/Combate';
 import DashboardPersonal from './pages/DashboardPersonal';
 import PerfilAluno from './pages/PerfilAluno';
 import MontadorTreino from './pages/MontadorTreino';
+import Cadastro from './pages/Cadastro';
 
 export default function App() {
   return (
